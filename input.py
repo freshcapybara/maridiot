@@ -74,7 +74,7 @@ def train_model_simple(training_data, labels):
     model.fit(training_data, labels, epochs=2)
 
 def train_model_lstm(training_data, labels):
-    model = models.Sequential()
+    model = keras.models.Sequential()
     model.add(layers.Dense(64, activation='relu', input_shape=(SLICE_SIZE, RAM_SIZE)))
     model.add(layers.LSTM(64, activation='relu'))
     model.add(layers.LSTM(128, activation='relu'))
@@ -83,7 +83,7 @@ def train_model_lstm(training_data, labels):
     model.add(layers.Dense(CONTROLS_INPUT_SIZE, activation='sigmoid'))
 
     model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(training_data, labels, epoch=10)
+    model.fit(training_data, labels, epochs=10)
 
 def main():
     parser = argparse.ArgumentParser()
