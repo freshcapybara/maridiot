@@ -1,9 +1,10 @@
+import os
 import sys
 import numpy as np
 import argparse
 import glob
-from tf.keras import keras
-import os
+from tensorflow import keras
+from tensorflow.keras import layers
 
 RAM_SIZE = 10240
 CONTROLS_INPUT_SIZE = 9
@@ -14,35 +15,35 @@ def slice():
     pass
 
 def parse_logfile(numpy_file):
-    input_array = np.load(numpy_file)
+    input_array = np.load(numpy_file, allow_pickle=True)
 
-    if not input.shape[1] == 2:
+    if not input_array.shape[1] == 2:
         print(f"Weirdly formatted input shape {input.shape[1]}")
         sys.exit()
     
-    num_frames = input.shape[0]
-    print(f"{num_frames} loaded from {numpy_file}")
+    num_frames = input_array.shape[0]
+    print(f"{num_frames} frames loaded")
 
     # generate the slices with some overlap
     slices = []
     current_frame = 0
     while True:
-        end_frame = current_fram + SLICE_SIZE
+        end_frame = current_frame + SLICE_SIZE
 
         if end_frame >= num_frames:
             break
 
-        slices.append(input[current_frame:end_frame])
+        slices.append(input_array[current_frame:end_frame])
         current_frame += BORDER_SIZE
 
-    print(f"Generated {len(slices)} from {numpy_file}.")
+    print(f"Generated {len(slices)}")
     return slices
 
 
 def parse_all_logfiles(directory):
     numpy_files = glob.glob(os.path.join(directory, "*.npy"))
     numpy_files.sort()
-    print(f"{len(numpy_file)} log files found.")
+    print(f"{len(numpy_files)} log files found.")
 
     all_slices = []
     for numpy_file in numpy_files:
@@ -50,8 +51,10 @@ def parse_all_logfiles(directory):
         slices = parse_logfile(numpy_file)
         all_slices.extend(slices)
     
-    traning_data = np.asarray(np.asarray(all_slices[:, 0]))
-    labels = np.asarray(np.asarray(all_slices[:, 1]))
+    all_slices = np.asarray(all_slices)
+    traning_data = all_slices[:, 0]
+    labels = all_slices[:, 1]
+
     print(traning_data)
     print(traning_data.shape)
     print(labels)
@@ -59,7 +62,7 @@ def parse_all_logfiles(directory):
     return traning_data, labels
 
 
-def train_model(training_data, labels):
+def train_model_simple(training_data, labels):
     model = models.Sequential()
     model.add(layers.Dense(64, activation='relu', input_shape=(RAM_SIZE,) ))
     model.add(layers.Dense(32, activation='relu', ))
@@ -67,7 +70,7 @@ def train_model(training_data, labels):
     model.add(layers.Dense(CONTROLS_INPUT_SIZE, activation='sigmoid'))
 
     model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(training_data, labels. epoch=2)
+    model.fit(training_data, labels, epoch=2)
 
 
 def main():
