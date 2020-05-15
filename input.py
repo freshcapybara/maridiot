@@ -54,7 +54,7 @@ def parse_all_logfiles(directory):
     all_slices = np.asarray(all_slices)
     print(all_slices.shape)
     traning_data = all_slices[:, :, 0]
-    §traning_data.flatten()
+    #traning_data.flatten()
     labels = all_slices[:, :, 1]
 
     #print(traning_data)
