@@ -36,7 +36,7 @@ def parse_logfile(numpy_file):
         slices.append(input_array[current_frame:end_frame])
         current_frame += BORDER_SIZE
 
-    print(f"Generated {len(slices)}")
+    print(f"Generated {len(slices)} slices")
     return slices
 
 
@@ -52,25 +52,26 @@ def parse_all_logfiles(directory):
         all_slices.extend(slices)
     
     all_slices = np.asarray(all_slices)
-    traning_data = all_slices[:, 0]
-    labels = all_slices[:, 1]
+    print(all_slices.shape)
+    traning_data = all_slices[:, :, 0]
+    labels = all_slices[:, :, 1]
 
-    print(traning_data)
+    #print(traning_data)
     print(traning_data.shape)
-    print(labels)
+    #print(labels)
     print(labels.shape)
     return traning_data, labels
 
 
 def train_model_simple(training_data, labels):
-    model = models.Sequential()
-    model.add(layers.Dense(64, activation='relu', input_shape=(RAM_SIZE,) ))
-    model.add(layers.Dense(32, activation='relu', ))
-    model.add(layers.Dense(32, activation='relu', ))
+    model = keras.models.Sequential()
+    model.add(layers.Dense(64, activation='relu', input_shape=(SLICE_SIZE, RAM_SIZE) ))
+    model.add(layers.Dense(32, activation='relu'))
+    model.add(layers.Dense(32, activation='relu'))
     model.add(layers.Dense(CONTROLS_INPUT_SIZE, activation='sigmoid'))
 
     model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(training_data, labels, epoch=2)
+    model.fit(training_data, labels, epochs=2)
 
 
 def main():
@@ -78,7 +79,8 @@ def main():
     parser.add_argument('directory')
     args = parser.parse_args()
 
-    parse_all_logfiles(args.directory)
+    train_data, labels = parse_all_logfiles(args.directory)
+    train_model_simple(train_data, labels)
 
 
 if __name__ == "__main__":
