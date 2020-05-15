@@ -54,18 +54,22 @@ def parse_all_logfiles(directory):
     all_slices = np.asarray(all_slices)
     print(all_slices.shape)
     traning_data = all_slices[:, :, 0]
+    §traning_data.flatten()
     labels = all_slices[:, :, 1]
 
     #print(traning_data)
     print(traning_data.shape)
     #print(labels)
     print(labels.shape)
+
+    # TODO: might want to shuffle the slices, might not
+
     return traning_data, labels
 
 
 def train_model_simple(training_data, labels):
     model = keras.models.Sequential()
-    model.add(layers.Dense(64, activation='relu', input_shape=(SLICE_SIZE, RAM_SIZE) ))
+    model.add(layers.Dense(64, activation='relu', input_shape=(training_data.shape[0], SLICE_SIZE, RAM_SIZE) ))
     model.add(layers.Dense(32, activation='relu'))
     model.add(layers.Dense(32, activation='relu'))
     model.add(layers.Dense(CONTROLS_INPUT_SIZE, activation='sigmoid'))
