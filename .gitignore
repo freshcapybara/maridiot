@@ -2,3 +2,5 @@ roms/
 *.pyc
 venv/
 *.npy
+.vscode/
+*.bk2
