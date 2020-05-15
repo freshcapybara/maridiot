@@ -4,6 +4,7 @@ import time
 import numpy as np
 import sys
 import os
+import datetime
 from pyglet.window import key as keycodes
 from retro.examples.interactive import Interactive
 
@@ -13,12 +14,13 @@ class OurRetroInteractive(Interactive):
     """
     Interactive setup for retro games
     """
-    def __init__(self, game, state, scenario):
+    def __init__(self, game, state, scenario, skip_frames):
         env = retro.make(game=game, state=state, scenario=scenario)
         self._buttons = env.buttons
         super().__init__(env=env, sync=False, tps=60, aspect_ratio=4/3)
-        self.session_name = f"{scenario}-{time.time()}"
+        self.session_name = f"{scenario}-{datetime.datetime.date(datetime.datetime.now())}-{datetime.datetime.now().hour}-{str(datetime.datetime.now().minute).zfill(2)}-{datetime.datetime.now().second}"
         self.session_data = []
+        self.skip_frames = skip_frames
 
     def get_image(self, _obs, env):
         return env.render(mode='rgb_array')
@@ -50,17 +52,6 @@ class OurRetroInteractive(Interactive):
             'START': 'ENTER' in keys,
         }
         return [inputs[b] for b in self._buttons]
-
-    def run(self):
-        prev_frame_time = time.time()
-        while True:
-            self._win.switch_to()
-            self._win.dispatch_events()
-            now = time.time()
-            self._update(now - prev_frame_time)
-            prev_frame_time = now
-            self._draw()
-            self._win.flip()
 
     def _on_close(self):
         #save collected data in file
@@ -108,7 +99,8 @@ class OurRetroInteractive(Interactive):
 
             if not self._sync or act is not None:
                 #save the current ram state and the according actions of current frame
-                self.save_frame(self._env.get_ram(), self._env.action_to_array(act))
+                if self._steps % self.skip_frames == 0:
+                    self.save_frame(self._env.get_ram(), self._env.action_to_array(act)[0])
                 obs, rew, done, _info = self._env.step(act)    
                 self._image = self.get_image(obs, self._env)
                 self._episode_returns += rew
@@ -140,17 +132,17 @@ class OurRetroInteractive(Interactive):
 
     def save_session(self):
         data = np.array(self.session_data)
-        print(data)
         np.save(os.path.join("recordings", self.session_name), data)
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--skip_frames', default=1, type=int)
     parser.add_argument('--game', default='SuperMarioBros-Nes')
     parser.add_argument('--state', default=retro.State.DEFAULT)
     parser.add_argument('--scenario', default='scenario')
     args = parser.parse_args()
 
-    ia = OurRetroInteractive(game=args.game, state=args.state, scenario=args.scenario)
+    ia = OurRetroInteractive(game=args.game, state=args.state, scenario=args.scenario, skip_frames=args.skip_frames)
     ia.run()
 
 
