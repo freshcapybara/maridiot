@@ -31,12 +31,17 @@ def main():
         #obs, rew, done, info = env.step(env.action_space.sample())
         
         # if frame % skip_frames == 0:
+        obs, rew, done, info = env.step(prediction)
         ram = env.get_ram().reshape(1, 10240)
+        # assert (env.get_ram()[:50] == ram[0, :50]).all()
         prediction = model.predict(ram)
-        prediction = (prediction[0] > 0.5).astype(np.uint8)
+        print(frame, prediction)
+        prediction = (prediction[0] > 0.1).astype(np.uint8)
+
+        print(frame, prediction)
             # print(prediction)
 
-        obs, rew, done, info = env.step(prediction)
+        #obs, rew, done, info = env.step(prediction)
         frame += 1
 
         #obs, rew, done, info = env.step(env.action_space.sample())

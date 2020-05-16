@@ -5,6 +5,7 @@ import argparse
 import glob
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras import regularizers
 
 RAM_SIZE = 10240
 CONTROLS_INPUT_SIZE = 9
@@ -57,14 +58,13 @@ def parse_all_logfiles(directory):
 
 def train_model_simple(training_data, labels):
     model = keras.models.Sequential()
-    model.add(layers.Dense(256, activation='relu', input_shape=(RAM_SIZE, ) ))
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(32, activation='relu'))
+    model.add(layers.Dense(4096, activation='relu', input_shape=(RAM_SIZE, ) ))
+    model.add(layers.Dense(2048, activation='relu', input_shape=(RAM_SIZE, ) ))
+    model.add(layers.Dense(2048, activation='relu', input_shape=(RAM_SIZE, ) ))
     model.add(layers.Dense(CONTROLS_INPUT_SIZE, activation='sigmoid'))
 
     model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(training_data, labels, epochs=20)
+    model.fit(training_data, labels, epochs=100, batch_size=512, shuffle=True, validation_split=0.2)
 
     model.save(os.path.join("models", 'simple_model'))
 

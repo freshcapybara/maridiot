@@ -2,6 +2,7 @@ venv/
 .vscode/
 roms/
 recordings/
+models/
 *.pyc
 *.npy
 *.bk2
