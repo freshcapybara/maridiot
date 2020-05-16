@@ -1,6 +1,7 @@
-roms/
-*.pyc
 venv/
-*.npy
 .vscode/
+roms/
+recordings/
+*.pyc
+*.npy
 *.bk2

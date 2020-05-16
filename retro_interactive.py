@@ -1,57 +1,26 @@
+import os
+import sys
 import argparse
 import retro
 import time
 import numpy as np
-import sys
-import os
 import datetime
+from pathlib import Path
 from pyglet.window import key as keycodes
-from retro.examples.interactive import Interactive
+from retro.examples.interactive import RetroInteractive
+
+RECORD_DIRECTORY = "recordings"
 
 
-
-class OurRetroInteractive(Interactive):
-    """
-    Interactive setup for retro games
-    """
-    def __init__(self, game, state, scenario, skip_frames):
-        env = retro.make(game=game, state=state, scenario=scenario)
-        self._buttons = env.buttons
-        super().__init__(env=env, sync=False, tps=60, aspect_ratio=4/3)
-        self.session_name = f"{scenario}-{datetime.datetime.date(datetime.datetime.now())}-{datetime.datetime.now().hour}-{str(datetime.datetime.now().minute).zfill(2)}-{datetime.datetime.now().second}"
-        self.session_data = []
+class OurRetroInteractive(RetroInteractive):
+    def __init__(self, game, state, scenario, skip_frames, no_saving=False):
+        self.session_name = f"{scenario}-{datetime.datetime.date(datetime.datetime.now())}-{datetime.datetime.now().hour}-{str(datetime.datetime.now().minute).zfill(2)}-{str(datetime.datetime.now().second).zfill(2)}"
+        self.session_ram_data = []
+        self.session_action_data = []
         self.skip_frames = skip_frames
+        self.no_saving = no_saving
 
-    def get_image(self, _obs, env):
-        return env.render(mode='rgb_array')
-
-    def keys_to_act(self, keys):
-        inputs = {
-            None: False,
-
-            'BUTTON': 'Z' in keys,
-            'A': 'Z' in keys,
-            'B': 'X' in keys,
-
-            'C': 'C' in keys,
-            'X': 'A' in keys,
-            'Y': 'S' in keys,
-            'Z': 'D' in keys,
-
-            'L': 'Q' in keys,
-            'R': 'W' in keys,
-
-            'UP': 'UP' in keys,
-            'DOWN': 'DOWN' in keys,
-            'LEFT': 'LEFT' in keys,
-            'RIGHT': 'RIGHT' in keys,
-
-            'MODE': 'TAB' in keys,
-            'SELECT': 'TAB' in keys,
-            'RESET': 'ENTER' in keys,
-            'START': 'ENTER' in keys,
-        }
-        return [inputs[b] for b in self._buttons]
+        super().__init__(game=game, state=state, scenario=scenario)
 
     def _on_close(self):
         #save collected data in file
@@ -125,14 +94,28 @@ class OurRetroInteractive(Interactive):
                     self._env.reset()
                     self._episode_steps = 0
                     self._episode_returns = 0
-                    self._prev_episode_returns = 0
+                    self._prev_episode_returns = 0        
 
-    def save_frame(self, actions, ram):
-        self.session_data.append(np.array([actions, ram]))
+    def save_frame(self, ram, actions):
+        self.session_ram_data.append(ram)
+        self.session_action_data.append(actions)
 
     def save_session(self):
-        data = np.array(self.session_data)
-        np.save(os.path.join("recordings", self.session_name), data)
+        assert len(self.session_ram_data) == len(self.session_action_data)
+        data_points = len(self.session_ram_data)
+
+        print(f"Generated {data_points} data points for {self._steps} frames of play time.")
+        
+        ram_data_name = os.path.join(RECORD_DIRECTORY, "ram", self.session_name)
+        action_data_name = os.path.join(RECORD_DIRECTORY, "input", self.session_name)
+
+        ram_data = np.array(self.session_ram_data, dtype=np.uint8)
+        print(ram_data.shape, ram_data.dtype)
+
+        if not self.no_saving:
+            np.save(ram_data_name, self.session_ram_data)
+            np.save(action_data_name, self.session_action_data)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -140,9 +123,14 @@ def main():
     parser.add_argument('--game', default='SuperMarioBros-Nes')
     parser.add_argument('--state', default=retro.State.DEFAULT)
     parser.add_argument('--scenario', default='scenario')
+    parser.add_argument('--no_saving', action='store_true')
     args = parser.parse_args()
 
-    ia = OurRetroInteractive(game=args.game, state=args.state, scenario=args.scenario, skip_frames=args.skip_frames)
+    # check if recordings directories exist
+    Path(os.path.join(RECORD_DIRECTORY, "ram")).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join(RECORD_DIRECTORY, "input")).mkdir(parents=True, exist_ok=True)
+
+    ia = OurRetroInteractive(game=args.game, state=args.state, scenario=args.scenario, skip_frames=args.skip_frames, no_saving=args.no_saving)
     ia.run()
 
 
