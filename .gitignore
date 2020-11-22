@@ -1,8 +1,9 @@
-venv/
+*.pyc
+*.npy
+*.bk2
+.env/
 .vscode/
 roms/
 recordings/
 models/
-*.pyc
-*.npy
-*.bk2
+papers/

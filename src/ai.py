@@ -4,7 +4,7 @@ import retro
 import numpy as np
 from tensorflow.keras.models import load_model
 
-from viewer import ImageViewer
+from src.viewer import ImageViewer
 
 
 # SCALE = 2
@@ -68,14 +68,11 @@ def main():
 
 
 
-    def close(self):
-        if self.isopen and sys.meta_path:
-            # ^^^ check sys.meta_path to avoid 'ImportError: sys.meta_path is None, Python is likely shutting down'
-            self.window.close()
-            self.isopen = False
+    # def close(self):
+    #     if self.isopen and sys.meta_path:
+    #         # ^^^ check sys.meta_path to avoid 'ImportError: sys.meta_path is None, Python is likely shutting down'
+    #         self.window.close()
+    #         self.isopen = False
 
-    def __del__(self):
-        self.close()
-
-if __name__ == "__main__":
-    main()
+    # def __del__(self):
+    #     self.close()

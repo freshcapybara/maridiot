@@ -1,34 +1,93 @@
+
 import os
 import sys
-import argparse
 import retro
 import time
 import numpy as np
-import datetime
 from pathlib import Path
 from pyglet.window import key as keycodes
+
 from retro.examples.interactive import RetroInteractive
 
-RECORD_DIRECTORY = "recordings"
-
-
-class OurRetroInteractive(RetroInteractive):
-    def __init__(self, game, state, scenario, skip_frames, no_saving=False):
-        self.session_name = f"{scenario}-{datetime.datetime.date(datetime.datetime.now())}-{datetime.datetime.now().hour}-{str(datetime.datetime.now().minute).zfill(2)}-{str(datetime.datetime.now().second).zfill(2)}"
+class RetroSession(RetroInteractive):
+    """
+    High-level class for human controlled game interaction. Allows saving state information.
+    """
+    def __init__(self, game, scenario, save_directory, state=None, record_session=False):
+        self.session_name = f"{scenario}-{int(time.time())}"
+        
+        self.record = record_session
+        self.save_directory = save_directory
         self.session_ram_data = []
         self.session_action_data = []
-        self.skip_frames = skip_frames
-        self.no_saving = no_saving
 
+        # create directories if necessary
+        if self.record:
+            Path(os.path.join(self.save_directory, "ram")).mkdir(parents=True, exist_ok=True)
+            Path(os.path.join(self.save_directory, "input")).mkdir(parents=True, exist_ok=True)
+        
+        self.action_buffer = None
+        self.start_time = time.time()
+        if state is None:
+            state = retro.State.DEFAULT
         super().__init__(game=game, state=state, scenario=scenario)
 
+
+    def run(self):
+        """
+        Override of the parents run script for additional state and action saving.
+        """
+        prev_frame_time = time.time()
+        while True:
+            self._win.switch_to()
+            self._win.dispatch_events()
+            now = time.time()
+            self._update(now - prev_frame_time)
+
+            # save updated state
+            if self.record and self.action_buffer:
+                self._save_frame(self._env.get_ram(), self._env.action_to_array(self.action_buffer)[0])
+                print(self._env.action_to_array(self.action_buffer)[0])
+
+            prev_frame_time = now
+            self._draw()
+            self._win.flip()
+
+
+    def save_session(self):
+        assert len(self.session_ram_data) == len(self.session_action_data)
+        data_points = len(self.session_ram_data)
+
+        print(f"Recording lasted for {time.time()-self.start_time}s")
+        print(f"Generated {data_points} data points for {self._steps} frames of play time.")
+        
+        ram_data_name = os.path.join(self.save_directory, "ram", self.session_name)
+        action_data_name = os.path.join(self.save_directory, "input", self.session_name)
+
+        ram_data = np.array(self.session_ram_data, dtype=np.uint8)
+        print(ram_data.shape, ram_data.dtype)
+        np.save(ram_data_name, self.session_ram_data)
+        np.save(action_data_name, self.session_action_data)
+
+
     def _on_close(self):
-        #save collected data in file
-        self.save_session()
-        self._env.close()
-        sys.exit(0)
+        # save collected data once session closes
+        if self.record:
+            self.save_session()
+
+        super()._on_close()
+
+
+    def _save_frame(self, ram, actions):
+        self.session_ram_data.append(ram)
+        self.session_action_data.append(actions)
+
 
     def _update(self, dt):
+        # modified version of the _update of interactive.py
+        # https://github.com/openai/retro/blob/master/retro/examples/interactive.py
+
+        self.action_buffer = None
         # cap the number of frames rendered so we don't just spend forever trying to catch up on frames
         # if rendering is slow
         max_dt = self._max_sim_frames_per_update / self._tps
@@ -67,10 +126,11 @@ class OurRetroInteractive(RetroInteractive):
             act = self.keys_to_act(keys)
 
             if not self._sync or act is not None:
-                #save the current ram state and the according actions of current frame
-                if self._steps % self.skip_frames == 0:
-                    self.save_frame(self._env.get_ram(), self._env.action_to_array(act)[0])
-                obs, rew, done, _info = self._env.step(act)    
+                obs, rew, done, _info = self._env.step(act)
+
+                # save last action
+                self.action_buffer = act
+
                 self._image = self.get_image(obs, self._env)
                 self._episode_returns += rew
                 self._steps += 1
@@ -94,45 +154,4 @@ class OurRetroInteractive(RetroInteractive):
                     self._env.reset()
                     self._episode_steps = 0
                     self._episode_returns = 0
-                    self._prev_episode_returns = 0        
-
-    def save_frame(self, ram, actions):
-        self.session_ram_data.append(ram)
-        self.session_action_data.append(actions)
-
-    def save_session(self):
-        assert len(self.session_ram_data) == len(self.session_action_data)
-        data_points = len(self.session_ram_data)
-
-        print(f"Generated {data_points} data points for {self._steps} frames of play time.")
-        
-        ram_data_name = os.path.join(RECORD_DIRECTORY, "ram", self.session_name)
-        action_data_name = os.path.join(RECORD_DIRECTORY, "input", self.session_name)
-
-        ram_data = np.array(self.session_ram_data, dtype=np.uint8)
-        print(ram_data.shape, ram_data.dtype)
-
-        if not self.no_saving:
-            np.save(ram_data_name, self.session_ram_data)
-            np.save(action_data_name, self.session_action_data)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--skip_frames', default=1, type=int)
-    parser.add_argument('--game', default='SuperMarioBros-Nes')
-    parser.add_argument('--state', default=retro.State.DEFAULT)
-    parser.add_argument('--scenario', default='scenario')
-    parser.add_argument('--no_saving', action='store_true')
-    args = parser.parse_args()
-
-    # check if recordings directories exist
-    Path(os.path.join(RECORD_DIRECTORY, "ram")).mkdir(parents=True, exist_ok=True)
-    Path(os.path.join(RECORD_DIRECTORY, "input")).mkdir(parents=True, exist_ok=True)
-
-    ia = OurRetroInteractive(game=args.game, state=args.state, scenario=args.scenario, skip_frames=args.skip_frames, no_saving=args.no_saving)
-    ia.run()
-
-
-if __name__ == '__main__':
-    main()
+                    self._prev_episode_returns = 0
