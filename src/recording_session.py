@@ -9,20 +9,22 @@ from pyglet.window import key as keycodes
 
 from retro.examples.interactive import RetroInteractive
 
-class RetroSession(RetroInteractive):
+class RecordingSession(RetroInteractive):
     """
     High-level class for human controlled game interaction. Allows saving state information.
     """
     def __init__(self, game, scenario, save_directory, state=None, record_session=False):
-        self.session_name = f"{scenario}-{int(time.time())}"
+        self.session_name = f"{game.lower()}-{int(time.time())}"
         
-        self.record = record_session
+        # recording data
+        self.record_session = record_session
         self.save_directory = save_directory
+        self.session_screen_data = []
         self.session_ram_data = []
         self.session_action_data = []
 
         # create directories if necessary
-        if self.record:
+        if self.record_session:
             Path(os.path.join(self.save_directory, "ram")).mkdir(parents=True, exist_ok=True)
             Path(os.path.join(self.save_directory, "input")).mkdir(parents=True, exist_ok=True)
         
@@ -33,6 +35,7 @@ class RetroSession(RetroInteractive):
         super().__init__(game=game, state=state, scenario=scenario)
 
 
+    # override
     def run(self):
         """
         Override of the parents run script for additional state and action saving.
@@ -44,9 +47,9 @@ class RetroSession(RetroInteractive):
             now = time.time()
             self._update(now - prev_frame_time)
 
-            # save updated state
-            if self.record and self.action_buffer:
-                self._save_frame(self._env.get_ram(), self._env.action_to_array(self.action_buffer)[0])
+            # save updated state if recording is set and we did a time step
+            if self.record_session and self.action_buffer:
+                self._save_frame(self._env.get_screen() , self._env.get_ram(), self._env.action_to_array(self.action_buffer)[0])
                 print(self._env.action_to_array(self.action_buffer)[0])
 
             prev_frame_time = now
@@ -55,30 +58,36 @@ class RetroSession(RetroInteractive):
 
 
     def save_session(self):
-        assert len(self.session_ram_data) == len(self.session_action_data)
-        data_points = len(self.session_ram_data)
-
+        """
+        Saves session states.
+        """
+        assert len(self.session_screen_data) == len(self.session_ram_data) == len(self.session_action_data)
         print(f"Recording lasted for {time.time()-self.start_time}s")
-        print(f"Generated {data_points} data points for {self._steps} frames of play time.")
-        
-        ram_data_name = os.path.join(self.save_directory, "ram", self.session_name)
-        action_data_name = os.path.join(self.save_directory, "input", self.session_name)
+        print(f"Generated {len(self.session_action_data)} data points for {self._steps} frames of play time.")
 
-        ram_data = np.array(self.session_ram_data, dtype=np.uint8)
-        print(ram_data.shape, ram_data.dtype)
-        np.save(ram_data_name, self.session_ram_data)
-        np.save(action_data_name, self.session_action_data)
+        # convert the recordings to numpy arrays
+        # uint8, (frames, 9), values are 0 or 1
+        action_array = np.array(np.array(self.session_action_data, dtype=np.uint8))
+        # uint8, (frames, 224, 240, 3), rgb values
+        screen_array = np.array(np.array(self.session_screen_data, dtype=np.uint8))
+        # uint8, (frames, 10240,)
+        ram_array = np.array(np.array(self.session_ram_data, dtype=np.uint8))
+        
+        output_name = os.path.join(self.save_directory, self.session_name)
+        np.savez_compressed(output_name, actions=action_array, screens=screen_array, ram=ram_array)
+        print(f"Saved to {output_name}.npz")
 
 
     def _on_close(self):
         # save collected data once session closes
-        if self.record:
+        if self.record_session:
             self.save_session()
 
         super()._on_close()
 
 
-    def _save_frame(self, ram, actions):
+    def _save_frame(self, screen, ram, actions):
+        self.session_screen_data.append(screen)
         self.session_ram_data.append(ram)
         self.session_action_data.append(actions)
 

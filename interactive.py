@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 
-from src.retro_session import RetroSession
+from src.recording_session import RecordingSession
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
     parser.add_argument('--record', action='store_true', default=False, help='if the user session should be recorded')
     args = parser.parse_args()
 
-    session = RetroSession(game=args.game, scenario=args.scenario, save_directory=args.directory, record_session=args.record, state=args.state)
+    session = RecordingSession(game=args.game, scenario=args.scenario, save_directory=args.directory, record_session=args.record, state=args.state)
     session.run()
 
 
